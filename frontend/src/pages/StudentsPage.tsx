@@ -74,6 +74,10 @@ export default function StudentsPage(): React.ReactElement {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  // admin authentication needed to reveal/edit existing password
+  const [isAuthForPassword, setIsAuthForPassword] = useState(false);
+  // hold the current student's password so we can populate it after auth
+  const [originalPassword, setOriginalPassword] = useState('');
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<any>();
 
   // Safe data extraction with defensive checks
@@ -143,6 +147,25 @@ export default function StudentsPage(): React.ReactElement {
     }
   };
 
+  // When the eye icon is clicked we may need to verify the admin password
+  const handlePasswordEyeClick = () => {
+    if (editingId && !isAuthForPassword) {
+      const ans = prompt('Enter admin password to unlock this field');
+      if (ans === 'admin') {
+        setIsAuthForPassword(true);
+        // also reveal immediately
+        setShowPassword(true);
+        if (originalPassword) {
+          reset({ ...watch(), password: originalPassword });
+        }
+      } else {
+        toast({ title: 'Incorrect admin password', variant: 'destructive' });
+      }
+    } else {
+      setShowPassword(p => !p);
+    }
+  };
+
   const handleEdit = (student: StudentItem) => {
     setEditingId(student._id);
     // compute display name from parts if necessary
@@ -153,10 +176,8 @@ export default function StudentsPage(): React.ReactElement {
       name: displayName,
       rollNumber: student.rollNumber,
       email: student.email,
-      // never pre-fill the password field when editing; we only allow
-      // admins to set a new password. the original password is hashed
-      // on the server and cannot be recovered, so there's nothing useful
-      // to display here.
+      // the password is available in the object (plain-text in dev mode); we
+      // do not populate it here until admin unlocks the field.
       password: '',
       motherName: (student as any).motherName || '',
       guardianName: (student as any).guardianName || '',
@@ -167,7 +188,9 @@ export default function StudentsPage(): React.ReactElement {
       idProofNumber: (student as any).idProofNumber || '',
       category: (student as any).category || '',
     });
+    setOriginalPassword(student.password || '');
     setShowPassword(false);
+    setIsAuthForPassword(false);
     setIsDialogOpen(true);
   };
 
@@ -216,6 +239,7 @@ export default function StudentsPage(): React.ReactElement {
             setIsDialogOpen(open);
             if (!open) {
               setEditingId(null);
+              setIsAuthForPassword(false);
               reset();
             }
           }}>
@@ -260,26 +284,27 @@ export default function StudentsPage(): React.ReactElement {
                   <Label htmlFor="password">Password{editingId ? ' (leave blank to keep)' : ''}</Label>
                   <Input
                     id="password"
+                    disabled={editingId && !isAuthForPassword}
                     type={showPassword ? 'text' : 'password'}
                     {...register('password', { required: !editingId })}
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
-                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => {
-                      setShowPassword(p => !p);
-                    }}
-                    // when editing there is no existing password value, so
-                    // disable the toggle to avoid confusion
-                    disabled={editingId && !watch('password')}
+                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600"
+                    onClick={handlePasswordEyeClick}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                   {errors.password && <span className="text-xs text-destructive">Password is required</span>}
-                  {editingId && (
+                  {editingId && !isAuthForPassword && (
                     <p className="text-xs text-muted-foreground">
-                      Existing passwords are hashed and cannot be recovered. Leave this field blank to keep the current password, or type a new one to change it.
+                      Password locked. Click the eye and enter admin password to unlock.
+                    </p>
+                  )}
+                  {editingId && isAuthForPassword && (
+                    <p className="text-xs text-muted-foreground">
+                      Password unlocked - you may view or change it.
                     </p>
                   )}
                 </div>

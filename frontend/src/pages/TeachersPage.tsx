@@ -38,6 +38,8 @@ export default function TeachersPage() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [isClassTeacher, setIsClassTeacher] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isAuthForPassword, setIsAuthForPassword] = useState(false);
+  const [originalPassword, setOriginalPassword] = useState('');
   const classesQuery = useClasses();
   const classes = Array.isArray(classesQuery.data) ? classesQuery.data : [];
   const { toast } = useToast();
@@ -143,12 +145,29 @@ export default function TeachersPage() {
     }
   };
 
+  const handlePasswordEyeClick = () => {
+    if (editingId && !isAuthForPassword) {
+      const ans = prompt('Enter admin password to unlock this field');
+      if (ans === 'admin') {
+        setIsAuthForPassword(true);
+        setShowPassword(true);
+        if (originalPassword) {
+          reset({ ...watch(), password: originalPassword });
+        }
+      } else {
+        toast({ title: 'Incorrect admin password', variant: 'destructive' });
+      }
+    } else {
+      setShowPassword(p => !p);
+    }
+  };
+
   const handleEdit = (teacher: any) => {
     setEditingId(teacher._id);
     reset({
       name: teacher.name,
       email: teacher.email,
-      password: teacher.password || '',
+      password: '', // locked until admin auth
       employeeId: (teacher as any).employeeId || '',
       phoneNumber: (teacher as any).phoneNumber || '',
       qualification: (teacher as any).qualification || '',
@@ -162,6 +181,8 @@ export default function TeachersPage() {
       alternatePhone: (teacher as any).alternatePhone || '',
     });
     setShowPassword(false);
+    setIsAuthForPassword(false);
+    setOriginalPassword(teacher.password || '');
     // Extract IDs from subject objects or use IDs directly
     const subjectIds = (teacher.subjects || []).map((s: any) => 
       typeof s === 'string' ? s : s._id
@@ -206,6 +227,7 @@ export default function TeachersPage() {
               setSelectedSubjects([]);
               setSelectedClasses([]);
               setIsClassTeacher(false);
+              setIsAuthForPassword(false);
               reset();
             }
           }}>
@@ -242,24 +264,27 @@ export default function TeachersPage() {
                   <Label htmlFor="password">Login Password{editingId ? ' (leave blank to keep)' : ''}</Label>
                   <Input
                     id="password"
+                    disabled={editingId && !isAuthForPassword}
                     type={showPassword ? 'text' : 'password'}
                     {...register("password", { required: !editingId })}
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
-                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => {
-                      setShowPassword(p => !p);
-                    }}
-                    disabled={editingId && !watch('password')}
+                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600"
+                    onClick={handlePasswordEyeClick}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                   {errors.password && <span className="text-xs text-destructive">Password is required</span>}
-                  {editingId && (
+                  {editingId && !isAuthForPassword && (
                     <p className="text-xs text-muted-foreground">
-                      Existing passwords are hashed and cannot be displayed. Leave this blank to keep the current password or enter a new one to change it.
+                      Password locked. Click the eye and enter admin password to unlock.
+                    </p>
+                  )}
+                  {editingId && isAuthForPassword && (
+                    <p className="text-xs text-muted-foreground">
+                      Password unlocked - you may view or change it.
                     </p>
                   )}
                 </div>
