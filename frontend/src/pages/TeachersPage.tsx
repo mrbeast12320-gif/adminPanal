@@ -42,7 +42,7 @@ export default function TeachersPage() {
   const classes = Array.isArray(classesQuery.data) ? classesQuery.data : [];
   const { toast } = useToast();
   
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<any>();
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<any>();
 
   const filteredTeachers = teachers.filter((teacher: any) => 
     teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -248,21 +248,20 @@ export default function TeachersPage() {
                   />
                   <button
                     type="button"
-                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={() => {
-                      if (editingId && !showPassword) {
-                        const pwd = prompt('Enter admin password to view stored teacher password');
-                        if (pwd === 'admin') {
-                          setShowPassword(true);
-                        }
-                      } else {
-                        setShowPassword(p => !p);
-                      }
+                      setShowPassword(p => !p);
                     }}
+                    disabled={editingId && !watch('password')}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                   {errors.password && <span className="text-xs text-destructive">Password is required</span>}
+                  {editingId && (
+                    <p className="text-xs text-muted-foreground">
+                      Existing passwords are hashed and cannot be displayed. Leave this blank to keep the current password or enter a new one to change it.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

@@ -74,7 +74,7 @@ export default function StudentsPage(): React.ReactElement {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<any>();
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<any>();
 
   // Safe data extraction with defensive checks
   const classes: ClassItem[] = useMemo(() => {
@@ -153,17 +153,11 @@ export default function StudentsPage(): React.ReactElement {
       name: displayName,
       rollNumber: student.rollNumber,
       email: student.email,
-      password: student.password || '',
-      classId: typeof student.classId === 'string' ? student.classId : (student.classId as ClassItem)?._id,
-      gender: student.gender || '',
-      dateOfBirth: student.dateOfBirth || '',
-      studentPhoto: student.studentPhoto || '',
-      admissionNumber: (student as any).admissionNumber || '',
-      academicYear: (student as any).academicYear || '',
-      section: (student as any).section || '',
-      studentMobileNumber: (student as any).studentMobileNumber || '',
-      residentialAddress: (student as any).residentialAddress || '',
-      fatherName: (student as any).fatherName || '',
+      // never pre-fill the password field when editing; we only allow
+      // admins to set a new password. the original password is hashed
+      // on the server and cannot be recovered, so there's nothing useful
+      // to display here.
+      password: '',
       motherName: (student as any).motherName || '',
       guardianName: (student as any).guardianName || '',
       parentMobileNumber: (student as any).parentMobileNumber || '',
@@ -272,21 +266,22 @@ export default function StudentsPage(): React.ReactElement {
                   />
                   <button
                     type="button"
-                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-8 text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={() => {
-                      if (editingId && !showPassword) {
-                        const pwd = prompt('Enter admin password to view stored student password');
-                        if (pwd === 'admin') {
-                          setShowPassword(true);
-                        }
-                      } else {
-                        setShowPassword(p => !p);
-                      }
+                      setShowPassword(p => !p);
                     }}
+                    // when editing there is no existing password value, so
+                    // disable the toggle to avoid confusion
+                    disabled={editingId && !watch('password')}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                   {errors.password && <span className="text-xs text-destructive">Password is required</span>}
+                  {editingId && (
+                    <p className="text-xs text-muted-foreground">
+                      Existing passwords are hashed and cannot be recovered. Leave this field blank to keep the current password, or type a new one to change it.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
